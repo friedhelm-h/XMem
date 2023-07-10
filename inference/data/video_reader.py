@@ -52,6 +52,9 @@ class VideoReader(Dataset):
             ])
         self.size = size
 
+        im_path = path.join(self.image_dir, self.frames[0])
+        img = Image.open(im_path).convert('RGB')
+        self.width, self.height = img.size
 
     def __getitem__(self, idx):
         frame = self.frames[idx]

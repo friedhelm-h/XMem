@@ -22,6 +22,11 @@ except ImportError:
     print('Failed to import hickle. Fine if not using multi-scale testing.')
 
 
+def simple_renormalize(tensor, max_val = 255.):
+    tensor_min, tensor_max = tensor.min(), tensor.max()
+    return max_val * (tensor - tensor_min) / (tensor_max - tensor_min)
+
+
 """
 Arguments loading
 """
@@ -233,6 +238,20 @@ for vid_reader in progressbar(meta_loader, max_value=len(meta_dataset), redirect
                 if vid_reader.get_palette() is not None:
                     out_img.putpalette(vid_reader.get_palette())
                 out_img.save(os.path.join(this_out_path, frame[:-4]+'.png'))
+
+                # Save polygon on image for visualization
+                visu_path = path.join(this_out_path, "visu")
+                os.makedirs(visu_path, exist_ok=True)
+                out_rgb = F.interpolate(rgb.unsqueeze(0), shape, mode='bilinear', align_corners=False).squeeze()
+                out_rgb = simple_renormalize(out_rgb)
+                out_rgb = (out_rgb.permute(1, 2, 0).detach().cpu().numpy()).astype(np.uint8)
+                out_rgb = Image.fromarray(out_rgb)
+                mask = out_img.point(lambda p: p > 128 and 255)
+                mask_color = Image.new('RGB', (vid_reader.width, vid_reader.height))
+                mask_color.paste((255, 0, 0), box=None, mask=mask)
+                alpha = 0.5
+                out_rgb = Image.blend(out_rgb, mask_color, 0.5)
+                out_rgb.save(os.path.join(visu_path, frame[:-4]+'.png'))
 
             if args.save_scores:
                 np_path = path.join(args.output, 'Scores', vid_name)
